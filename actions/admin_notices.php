@@ -1,9 +1,9 @@
 <?php 
 
-function pmli_admin_notices() {
-	// notify user if history folder is not writable		
-	if ( ! class_exists( 'PMXI_Plugin' ) ) {			
+function pmli_admin_notices() {	
 
+	// notify user if history folder is not writable		
+	if ( ! class_exists( 'PMXI_Plugin' ) ) {
 		?>
 		<div class="error"><p>
 			<?php printf(

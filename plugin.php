@@ -462,6 +462,8 @@ else {
 		 */
 		public static function get_default_import_options() {
 			
+			if (!class_exists( 'SitePress' )) return array();
+
 			global $sitepress;
 		    $langs = $sitepress->get_active_languages(); 
 			$lng_code = $sitepress->get_current_language();	
