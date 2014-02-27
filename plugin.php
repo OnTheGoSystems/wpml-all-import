@@ -256,10 +256,10 @@ else {
 					
 					$imp->getById($imp->id);				
 					
-					if ( ! $imp->isEmpty() and empty($imp->options['pmli']['lang_code'])){									
+					if ( ! $imp->isEmpty() and !empty($imp->options) and empty($imp->options['pmli']['lang_code'])){									
 
-						$options = $imp->options + self::get_default_import_options();
-						
+						$options = $imp->options + self::get_default_import_options();						
+
 						$imp->set(array(
 							'options' => $options
 						))->update();
