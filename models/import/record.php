@@ -41,8 +41,8 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 		$cxpath = $this->parsing_data['xpath_prefix'] . $this->parsing_data['import']->xpath;
 
-		$chunk == 1 and $logger and call_user_func($logger, __('Composing translations...', 'pmxi_plugin'));		
-		$chunk == 1 and $logger and call_user_func($logger, __('Composing unique keys...', 'pmxi_plugin'));
+		$this->parsing_data['chunk'] == 1 and $this->parsing_data['logger'] and call_user_func($this->parsing_data['logger'], __('Composing translations...', 'pmxi_plugin'));		
+		$this->parsing_data['chunk'] == 1 and $this->parsing_data['logger'] and call_user_func($this->parsing_data['logger'], __('Composing unique keys...', 'pmxi_plugin'));
 		$this->data['pmli_unique_keys'] = XmlImportParser::factory($this->parsing_data['xml'], $cxpath, $this->parsing_data['import']->options['pmli_unique_key'], $file)->parse(); $tmp_files[] = $file;
 
 		remove_filter('user_has_cap', array($this, '_filter_has_cap_unfiltered_html')); kses_init(); // return any filtering rules back if they has been disabled for import procedure					

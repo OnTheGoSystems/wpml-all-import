@@ -41,7 +41,7 @@ class PMLI_Admin_Import extends PMLI_Controller_Admin {
 
 		if (empty($this->data['import']->parent_import_id) and empty($_GET['lng'])) return;
 
-		$this->data['is_loaded_template'] = PMXI_Plugin::$session->data['pmxi_import']['is_loaded_template'];
+		$this->data['is_loaded_template'] = (!empty(PMXI_Plugin::$session->data['pmxi_import']['is_loaded_template'])) ? PMXI_Plugin::$session->data['pmxi_import']['is_loaded_template'] : false;
 
 		$load_options = $this->input->post('load_template');
 

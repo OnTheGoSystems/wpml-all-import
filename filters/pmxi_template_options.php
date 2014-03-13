@@ -14,7 +14,7 @@ function pmli_pmxi_template_options($template_options, $isWizard){
 		
 		$parent_import = new PMXI_Import_Record();
 
-		$id = $_GET['parent_import'] and $parent_import->getById($id);
+		isset($_GET['parent_import']) and $id = $_GET['parent_import'] and $parent_import->getById($id);
 
 		if ( ! $parent_import->isEmpty() ){			
 

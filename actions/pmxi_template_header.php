@@ -3,7 +3,7 @@ function pmli_pmxi_template_header($isWizard, $post){
 	
 	global $sitepress;
     $langs = $sitepress->get_active_languages(); 
-	$lng_code = ($_GET['lng']) ? $_GET['lng'] : $sitepress->get_current_language();	
+	$lng_code = (!empty($_GET['lng'])) ? $_GET['lng'] : $sitepress->get_current_language();	
 
 	if (empty($post['pmli'])):
 	?>
