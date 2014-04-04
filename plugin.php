@@ -475,8 +475,8 @@ else {
 			return array(
 				'pmli' => array(
 					'lang_code' => $lng_code,
-					'lang_name' => $langs[$lng_code]['native_name'],
-					'lang_name_en' => $langs[$lng_code]['english_name']
+					'lang_name' => (!empty($langs[$lng_code]['native_name'])) ? $langs[$lng_code]['native_name'] : '',
+					'lang_name_en' => (!empty($langs[$lng_code]['english_name'])) ? $langs[$lng_code]['english_name'] : ''
 				),	
 
 				'pmli_duplicate_matching' => 'auto',
