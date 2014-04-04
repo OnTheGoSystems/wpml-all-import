@@ -1,106 +1,156 @@
 <?php
-/*
-WPUpdates Plugin Updater Class
-http://wp-updates.com
-v1.3
 
-Example Usage:
-require_once('wp-updates-plugin.php');
-new WPUpdatesPluginUpdater( 'http://wp-updates.com/api/1/plugin', 1, plugin_basename(__FILE__) );
-*/
+if( ! class_exists('PMLI_Updater') ) {
 
-if( !class_exists('PMLI_Updater') ) {
     class PMLI_Updater {
-    
-    	var $api_url;
-    	var $plugin_id;
-    	var $plugin_path;
-    	var $plugin_slug;
-    
-    	function __construct( $api_url, $plugin_id, $plugin_path ) {
-    		$this->api_url = $api_url;
-    		$this->plugin_id = $plugin_id;
-    		$this->plugin_path = $plugin_path;
-    		if(strstr($plugin_path, '/')) list ($t1, $t2) = explode('/', $plugin_path); 
-    		else $t2 = $plugin_path;
-    		$this->plugin_slug = str_replace('.php', '', $t2);
-    
-    		add_filter( 'pre_set_site_transient_update_plugins', array(&$this, 'check_for_update') );
-    		add_filter( 'plugins_api', array(&$this, 'plugin_api_call'), 10, 3 );
-    		
-    		// This is for testing only!
-    		//set_site_transient( 'update_plugins', null );
-    
-    		// Show which variables are being requested when query plugin API
-    		//add_filter( 'plugins_api_result', array(&$this, 'debug_result'), 10, 3 );
-    	}
-    
-    	function check_for_update( $transient ) {
+        private $api_url  = '';
+        private $api_data = array();
+        private $name     = '';
+        private $slug     = '';
 
-    		if(empty($transient->checked)) return $transient;
-    		
-    		$request_args = array(
-    		    'id' => $this->plugin_id,
-    		    'slug' => $this->plugin_slug,
-    			'version' => $transient->checked[$this->plugin_path]
-    		);
-    		$request_string = $this->prepare_request( 'update_check', $request_args );
-    		$raw_response = wp_remote_post( $this->api_url, $request_string );
-    		
-    		$response = null;
-    		if( !is_wp_error($raw_response) && ($raw_response['response']['code'] == 200) )
-    			$response = unserialize($raw_response['body']);
-    		
-    		if( is_object($response) && !empty($response) ) // Feed the update data into WP updater
-    			$transient->response[$this->plugin_path] = $response;
-    
-    		return $transient;
-    	}
-    
-    	function plugin_api_call( $def, $action, $args ) {
-            
-    		if( !isset($args->slug) || $args->slug != $this->plugin_slug ) return $def;
-    		
-    		$plugin_info = get_site_transient('update_plugins');
-    		$request_args = array(
-    		    'id' => $this->plugin_id,
-    		    'slug' => $this->plugin_slug,
-    			'version' => (isset($plugin_info->checked)) ? $plugin_info->checked[$this->plugin_path] : 0 // Current version
-    		);
-    		
-    		$request_string = $this->prepare_request( $action, $request_args );
-    		$raw_response = wp_remote_post( $this->api_url, $request_string );
-    		
-    		if( is_wp_error($raw_response) ){
-    			$res = new WP_Error('plugins_api_failed', __('An Unexpected HTTP Error occurred during the API request.</p> <p><a href="?" onclick="document.location.reload(); return false;">Try again</a>'), $raw_response->get_error_message());
-    		} else {
-    			$res = unserialize($raw_response['body']);
-    			if ($res === false)
-    				$res = new WP_Error('plugins_api_failed', __('An unknown error occurred'), $raw_response['body']);
-    		}
-    		
-    		return $res;
-    	}
-    
-    	function prepare_request( $action, $args ) {
-    		global $wp_version;
-    		
-    		return array(
-    			'body' => array(
-    				'action' => $action, 
-    				'request' => serialize($args),
-    				'api-key' => md5(home_url())
-    			),
-    			'user-agent' => 'WordPress/'. $wp_version .'; '. home_url()
-    		);	
-    	}
-    	
-    	function debug_result( $res, $action, $args ) {
-    		echo '<pre>'.print_r($res,true).'</pre>';
-    		return $res;
-    	}
-    
-    }
+        /**
+         * Class constructor.
+         *
+         * @uses plugin_basename()
+         * @uses hook()
+         *
+         * @param string $_api_url The URL pointing to the custom API endpoint.
+         * @param string $_plugin_file Path to the plugin file.
+         * @param array $_api_data Optional data to send with API calls.
+         * @return void
+         */
+        function __construct( $_api_url, $_plugin_file, $_api_data = null ) {
+            $this->api_url  = trailingslashit( $_api_url );
+            $this->api_data = urlencode_deep( $_api_data );
+            $this->name     = plugin_basename( $_plugin_file );
+            $this->slug     = basename( $_plugin_file, '.php');
+            $this->version  = $_api_data['version'];
+
+            // Set up hooks.
+            $this->hook();
+        }
+
+        /**
+         * Set up Wordpress filters to hook into WP's update process.
+         *
+         * @uses add_filter()
+         *
+         * @return void
+         */
+        private function hook() {
+            add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'pre_set_site_transient_update_plugins_filter' ) );
+            add_filter( 'plugins_api', array( $this, 'plugins_api_filter' ), 10, 3 );
+            add_filter( 'http_request_args', array( $this, 'http_request_args' ), 10, 2 );
+        }
+
+        /**
+         * Check for Updates at the defined API endpoint and modify the update array.
+         *
+         * This function dives into the update api just when Wordpress creates its update array,
+         * then adds a custom API call and injects the custom plugin data retrieved from the API.
+         * It is reassembled from parts of the native Wordpress plugin update code.
+         * See wp-includes/update.php line 121 for the original wp_update_plugins() function.
+         *
+         * @uses api_request()
+         *
+         * @param array $_transient_data Update array build by Wordpress.
+         * @return array Modified update array with custom plugin data.
+         */
+        function pre_set_site_transient_update_plugins_filter( $_transient_data ) {
+
+
+            if( empty( $_transient_data ) ) return $_transient_data;
+
+            $to_send = array( 'slug' => $this->slug );
+
+            $api_response = $this->api_request( 'plugin_latest_version', $to_send );
+
+            if( false !== $api_response && is_object( $api_response ) && isset( $api_response->new_version ) ) {
+                if( version_compare( $this->version, $api_response->new_version, '<' ) )
+                    $_transient_data->response[$this->name] = $api_response;
+            }
+            return $_transient_data;
+        }
+
+
+        /**
+         * Updates information on the "View version x.x details" page with custom data.
+         *
+         * @uses api_request()
+         *
+         * @param mixed $_data
+         * @param string $_action
+         * @param object $_args
+         * @return object $_data
+         */
+        function plugins_api_filter( $_data, $_action = '', $_args = null ) {
+            if ( ( $_action != 'plugin_information' ) || !isset( $_args->slug ) || ( $_args->slug != $this->slug ) ) return $_data;
+
+            $to_send = array( 'slug' => $this->slug );
+
+            $api_response = $this->api_request( 'plugin_information', $to_send );
+            if ( false !== $api_response ) $_data = $api_response;
+
+            return $_data;
+        }
+
+
+        /**
+         * Disable SSL verification in order to prevent download update failures
+         *
+         * @param array $args
+         * @param string $url
+         * @return object $array
+         */
+        function http_request_args( $args, $url ) {
+            // If it is an https request and we are performing a package download, disable ssl verification
+            if( strpos( $url, 'https://' ) !== false && strpos( $url, 'edd_action=package_download' ) ) {
+                $args['sslverify'] = false;
+            }
+            return $args;
+        }
+
+        /**
+         * Calls the API and, if successfull, returns the object delivered by the API.
+         *
+         * @uses get_bloginfo()
+         * @uses wp_remote_post()
+         * @uses is_wp_error()
+         *
+         * @param string $_action The requested action.
+         * @param array $_data Parameters for the API action.
+         * @return false||object
+         */
+        private function api_request( $_action, $_data ) {
+
+            global $wp_version;
+
+            $data = array_merge( $this->api_data, $_data );
+
+            if( $data['slug'] != $this->slug )
+                return;
+
+            if( empty( $data['license'] ) )
+                return;
+
+            $api_params = array(
+                'edd_action'    => 'get_version',
+                'license'       => $data['license'],
+                'name'          => $data['item_name'],
+                'slug'          => $this->slug,
+                'author'        => $data['author']
+            );
+            $request = wp_remote_post( $this->api_url, array( 'timeout' => 15, 'sslverify' => false, 'body' => $api_params ) );
+
+            if ( ! is_wp_error( $request ) ):
+                $request = json_decode( wp_remote_retrieve_body( $request ) );
+                if( $request && isset( $request->sections ) )
+                    $request->sections = maybe_unserialize( $request->sections );
+                return $request;
+            else:
+                return false;
+            endif;
+        }
+    }    
+
 }
-
-?>

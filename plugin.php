@@ -3,7 +3,7 @@
 Plugin Name: WP All Import - WPML Add-On
 Plugin URI: http://www.wpallimport.com/
 Description: Import to WPML. Requires WP All Import & WPML.
-Version: 0.9.2
+Version: 0.9.3
 Author: Soflyy
 */
 /**
@@ -24,7 +24,7 @@ define('PMLI_ROOT_URL', rtrim(plugin_dir_url(__FILE__), '/'));
  */
 define('PMLI_PREFIX', 'pmli_');
 
-define('PMLI_VERSION', '0.9.2');
+define('PMLI_VERSION', '0.9.3');
 
 if ( class_exists('PMLI_Plugin') and pmli_EDITION == "free"){
 
@@ -98,6 +98,10 @@ else {
 				self::$instance = new self();
 			}
 			return self::$instance;
+		}
+
+		static public function getEddName(){
+			return 'WPML Add-On';
 		}
 
 		/**
@@ -491,6 +495,19 @@ else {
 
 	PMLI_Plugin::getInstance();
 
-	//new pmli_Updater( 'http://wp-updates.com/api/1/plugin', 189, plugin_basename(__FILE__) );
+	// retrieve our license key from the DB
+	$options = get_option('PMXI_Plugin_Options');
+	
+	if (!empty($options['licenses']['PMLI_Plugin'])){		
+		
+		// setup the updater
+		$updater = new PMLI_Updater( $options['info_api_url'], __FILE__, array( 
+				'version' 	=> PMWI_VERSION,		// current version number
+				'license' 	=> $options['licenses']['PMLI_Plugin'], // license key (used get_option above to retrieve from DB)
+				'item_name' => PMLI_Plugin::getEddName(), 	// name of this plugin
+				'author' 	=> 'Soflyy'  // author of this plugin
+			)
+		);
+	}
 }
 
