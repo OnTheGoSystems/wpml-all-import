@@ -502,7 +502,7 @@ else {
 		
 		// setup the updater
 		$updater = new PMLI_Updater( $options['info_api_url'], __FILE__, array( 
-				'version' 	=> PMWI_VERSION,		// current version number
+				'version' 	=> PMLI_VERSION,		// current version number
 				'license' 	=> $options['licenses']['PMLI_Plugin'], // license key (used get_option above to retrieve from DB)
 				'item_name' => PMLI_Plugin::getEddName(), 	// name of this plugin
 				'author' 	=> 'Soflyy'  // author of this plugin
