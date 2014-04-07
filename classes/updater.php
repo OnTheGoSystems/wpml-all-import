@@ -128,14 +128,11 @@ if( ! class_exists('PMLI_Updater') ) {
             $data = array_merge( $this->api_data, $_data );
 
             if( $data['slug'] != $this->slug )
-                return;
-
-            if( empty( $data['license'] ) )
-                return;
+                return;            
 
             $api_params = array(
                 'edd_action'    => 'get_version',
-                'license'       => $data['license'],
+                'license'       => false,
                 'name'          => $data['item_name'],
                 'slug'          => $this->slug,
                 'author'        => $data['author']
