@@ -58,55 +58,27 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 		if ( ! $importData['import']->parent_import_id ){ 			
 
-			if ($importData['import']->options['is_fast_mode']){				
+			$translation = $this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND element_id = %d AND language_code = %s", 'post_' . get_post_type($importData['pid']), $importData['pid'], $importData['import']->options['pmli']['lang_code']));				
 
-				$translation = $this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND element_id = %d AND language_code = %s", 'post_' . get_post_type($importData['pid']), $importData['pid'], $importData['import']->options['pmli']['lang_code']));				
-
-				if ( empty($translation) ){
-					
-					$this->wpdb->insert( 
-						$this->wpdb->prefix . 'icl_translations',
-						array( 
-							'element_type' => 'post_' . get_post_type($importData['pid']), 
-							'element_id' => $importData['pid'],
-							'trid' => $importData['pid'],
-							'language_code' => $importData['import']->options['pmli']['lang_code']
-						), 
-						array( 
-							'%s', 
-							'%d',
-							'%d',
-							'%s'							
-						) 
-					);
-					
-				}
-
-			} else {
-
-				if (empty($importData['articleData']['ID'])){
-					
-					$this->wpdb->delete( $this->wpdb->prefix . 'icl_translations', array( 'element_type' => 'post_' . get_post_type($importData['pid']), 'element_id' => $importData['pid'] ), array( '%s', '%d' ) );	
-
-					$this->wpdb->insert( 
-						$this->wpdb->prefix . 'icl_translations',
-						array( 
-							'element_type' => 'post_' . get_post_type($importData['pid']), 
-							'element_id' => $importData['pid'],
-							'trid' => $importData['pid'],
-							'language_code' => $importData['import']->options['pmli']['lang_code']
-						), 
-						array( 
-							'%s', 
-							'%d',
-							'%d',
-							'%s'							
-						) 
-					);
-
-				}
-
-			}
+			if ( empty($translation) ){
+				
+				$this->wpdb->insert( 
+					$this->wpdb->prefix . 'icl_translations',
+					array( 
+						'element_type' => 'post_' . get_post_type($importData['pid']), 
+						'element_id' => $importData['pid'],
+						'trid' => $importData['pid'],
+						'language_code' => $importData['import']->options['pmli']['lang_code']
+					), 
+					array( 
+						'%s', 
+						'%d',
+						'%d',
+						'%s'							
+					) 
+				);
+				
+			}			
 
 			return;
 		}
@@ -149,8 +121,12 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 			));
 			
 			if ('custom field' == $import->options['pmli_duplicate_indicator']) {
+				$tmp_files = array();
 				$custom_duplicate_value = XmlImportParser::factory($xml, $cxpath, $import->options['pmli_custom_duplicate_value'], $file)->parse(); $tmp_files[] = $file;
 				$custom_duplicate_name = XmlImportParser::factory($xml, $cxpath, $import->options['pmli_custom_duplicate_name'], $file)->parse(); $tmp_files[] = $file;
+				foreach ($tmp_files as $file) { // remove all temporary files created
+					unlink($file);
+				}
 			}
 			else{
 				count($titles) and $custom_duplicate_name = $custom_duplicate_value = array_fill(0, count($titles), '');					
@@ -171,8 +147,9 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 		global $sitepress;
 		$parent_trid = $sitepress->get_element_trid( $parent_id, 'post_' . get_post_type($parent_id) );
 
+		// if there is no parent entry then remove translation
 		if ( ! $parent_trid or get_post_type($pid) != get_post_type($parent_id) ) {
-
+			
 			wp_delete_post($pid, true);
 
 			$postRecord->clear();
@@ -216,6 +193,53 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 		extract($importData);				
 
+		if ( ! $import->parent_import_id ){ 
+
+			$taxonomies = array_diff_key(get_taxonomies_by_object_type(array(get_post_type($pid)), 'object'), array_flip(array('post_format', 'product_type')));
+
+			foreach (array_keys($taxonomies) as $cname) {				
+
+				$txes_list = get_the_terms($pid, $cname);								
+
+				if ( ! is_wp_error($txes_list) ) {
+					
+					if (!empty($txes_list)):						
+
+						foreach ($txes_list as $key => $t) {																					
+							
+							$translation = $this->wpdb->get_row( $this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND element_id = %d AND language_code = %s", 'tax_' . $cname, $t->term_taxonomy_id, $import->options['pmli']['lang_code']) );							
+
+							if ( empty($translation) ){
+
+								$this->wpdb->delete( $this->wpdb->prefix . 'icl_translations', array( 'element_type' => 'tax_' . $cname, 'element_id' => $t->term_taxonomy_id, 'language_code' => $import->options['pmli']['lang_code'] ), array( '%s', '%d' ) );	
+
+								$this->wpdb->insert(
+									$this->wpdb->prefix . 'icl_translations',
+									array(
+										'element_type' => 'tax_' . $cname, 
+										'element_id' => $t->term_taxonomy_id,
+										'trid' => $t->term_taxonomy_id,
+										'language_code' => $import->options['pmli']['lang_code']										
+									), 
+									array( 
+										'%s', 
+										'%d',
+										'%d',
+										'%s'										
+									) 
+								);	
+
+							}
+
+						}
+
+					endif;
+				}
+			}
+
+			return;
+		}
+
 		// [taxonomies]
 
 		if ( $import->options['pmli_is_translate_taxonomies'] ){		
@@ -233,38 +257,73 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 				if ($import->options['pmli_translate_taxonomies_logic'] == "only" and ((!empty($import->options['pmli_taxonomies_list']) 
 					and is_array($import->options['pmli_taxonomies_list']) and ! in_array($cname, $import->options['pmli_taxonomies_list'])) or empty($import->options['pmli_taxonomies_list']))) continue;
 
-				$txes_list = get_the_terms($pid, $cname);				
+				$txes_list = wp_get_object_terms($pid, $cname, array('orderby' => 'term_id'));				
 
-				$parent_txes_list = get_the_terms($this->parent_id, $cname);				
+				$parent_txes_list = wp_get_object_terms($this->parent_id, $cname, array('orderby' => 'term_id'));				
 
 				if ( ! is_wp_error($txes_list) ) {
 					
 					if (!empty($txes_list)):						
 
+						$assigned_txes = array();
+
 						foreach ($txes_list as $key => $t) {														
 
 							if ( ! empty($parent_txes_list[$key]) ) {
-							
-								$translation = $this->wpdb->get_row( $this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND element_id = %d AND language_code = %s", 'tax_' . $cname, $t->term_taxonomy_id, $import->options['pmli']['lang_code']) );
 
 								$parent_tx_trid = $sitepress->get_element_trid( $parent_txes_list[$key]->term_taxonomy_id, 'tax_' . $cname );																								
+							
+								$translation = $this->wpdb->get_row( $this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND trid = %d AND language_code = %s AND source_language_code = %s", 'tax_' . $cname, $parent_tx_trid, $import->options['pmli']['lang_code'], $parentImport->options['pmli']['lang_code']) );								
 
 								if ( empty($translation) ){
 
-									// if translation is equal to default value
-									if ( $t->name == $parent_txes_list[$key]->name ) {
+									$el_id = $t->term_taxonomy_id;
+
+									if ($t->term_id == $parent_txes_list[$key]->term_id){
+										$newname = $t->name;
+										if ( $t->name == $parent_txes_list[$key]->name ){
+											$newname = $t->name . ' @' . $import->options['pmli']['lang_code'];
+										}
+										$parent = 0;
+										if ($t->parent){
+											$parent_term = get_term_by('id', $t->parent, $cname);
+											if (!is_wp_error($parent_term)){
+												$parent_parent_tx_trid = $sitepress->get_element_trid( $parent_term->term_taxonomy_id, 'tax_' . $cname );																								
+												$parent_translation = $this->wpdb->get_row( $this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND trid = %d AND language_code = %s AND source_language_code = %s", 'tax_' . $cname, $parent_parent_tx_trid, $import->options['pmli']['lang_code'], $parentImport->options['pmli']['lang_code']) );
+												if (!empty($parent_translation) and !empty($parent_translation->element_id)){
+													$parent = $parent_translation->element_id;
+												}
+											}
+										}
+										
+										$term = wp_insert_term($newname, $cname, array(
+											'parent' => (int) $parent
+										));
+										if (! is_wp_error($term) ){		
+											$el_id = $term['term_taxonomy_id'];
+											$term = get_term_by('id', $term['term_id'], $cname);
+											if (!in_array($term->slug, $assigned_txes)) $assigned_txes[] = $term->slug;
+										}
+										else continue;
+									}
+								    // if translation is equal to default value
+									elseif ( $t->name == $parent_txes_list[$key]->name ) {
 										wp_update_term($t->term_id, $cname, array(
 										  'name' => $t->name . ' @' . $import->options['pmli']['lang_code'],
 										));
+										if (!in_array($t->slug, $assigned_txes)) $assigned_txes[] = $t->slug;
+									}
+									else{
+										$assigned_txes[] = $t->slug;
 									}
 
-									$this->wpdb->delete( $this->wpdb->prefix . 'icl_translations', array( 'element_type' => 'tax_' . $cname, 'element_id' => $t->term_taxonomy_id ), array( '%s', '%d' ) );	
+									$this->wpdb->delete( $this->wpdb->prefix . 'icl_translations', array( 'element_type' => 'tax_' . $cname, 'element_id' => $el_id), array( '%s', '%d' ) );	
 
 									$this->wpdb->insert(
 										$this->wpdb->prefix . 'icl_translations',
 										array(
 											'element_type' => 'tax_' . $cname, 
-											'element_id' => $t->term_taxonomy_id,
+											'element_id' => $el_id,
 											'trid' => $parent_tx_trid,
 											'language_code' => $import->options['pmli']['lang_code'],
 											'source_language_code' => $parentImport->options['pmli']['lang_code']
@@ -276,10 +335,21 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 											'%s',
 											'%s' 
 										) 
-									);										
+									);		
+
 								}
+								else{
+
+									$term = get_term_by('id', $translation->element_id, $cname);
+
+									if ( !is_wp_error($term) and !in_array($term->slug, $assigned_txes)) $assigned_txes[] = $term->slug;
+
+								}	
+								//$assigned_txes[] = $parent_txes_list[$key]->slug;							
 							}
 						}
+
+						wp_set_object_terms($pid, $assigned_txes, $cname);
 
 					endif;
 					
