@@ -145,10 +145,14 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 		$this->parent_id = $parent_id;
 
 		global $sitepress;
+
 		$parent_trid = $sitepress->get_element_trid( $parent_id, 'post_' . get_post_type($parent_id) );
 
+		if ( ! $parent_trid )
+			$parent_trid = $sitepress->get_element_trid( $parent_id, 'post_' . get_post_type($pid) );
+							
 		// if there is no parent entry then remove translation
-		if ( ! $parent_trid or get_post_type($pid) != get_post_type($parent_id) ) {
+		if ( ! $parent_trid or ( (get_post_type($pid) != get_post_type($parent_id)) and !in_array(get_post_type($pid), array('product', 'product_variation'))) ) {
 			
 			wp_delete_post($pid, true);
 
