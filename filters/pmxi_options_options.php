@@ -1,9 +1,7 @@
 <?php
 function pmli_pmxi_options_options($options, $isWizard){
 
-	if ($isWizard){
-
-		$default = PMXI_Plugin::get_default_import_options();
+	if ($isWizard){		
 		
 		$parent_import = new PMXI_Import_Record();
 
@@ -11,8 +9,8 @@ function pmli_pmxi_options_options($options, $isWizard){
 
 		if ( ! $parent_import->isEmpty() ){			
 
-			$options = $parent_import->options + $default;					
-
+			$options = $parent_import->options + $options;					
+			
 		}
 
 	}
