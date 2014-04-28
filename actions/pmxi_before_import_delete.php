@@ -9,8 +9,8 @@ function pmli_pmxi_before_import_delete($import, $is_delete_posts){
 
 	if ( ! $list->isEmpty() ):		
 
-		foreach ($list->convertRecords() as $item):
-			
+		foreach ($list->convertRecords() as $item):					
+
 			$item->delete( ! $is_delete_posts );
 
 		endforeach;
