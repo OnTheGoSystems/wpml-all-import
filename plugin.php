@@ -3,7 +3,7 @@
 Plugin Name: WP All Import - WPML Add-On
 Plugin URI: http://www.wpallimport.com/
 Description: Import to WPML. Requires WP All Import & WPML.
-Version: 0.9.4 RC2
+Version: 0.9.4
 Author: Soflyy
 */
 /**
@@ -24,7 +24,7 @@ define('PMLI_ROOT_URL', rtrim(plugin_dir_url(__FILE__), '/'));
  */
 define('PMLI_PREFIX', 'pmli_');
 
-define('PMLI_VERSION', '0.9.4 RC2');
+define('PMLI_VERSION', '0.9.4');
 
 if ( class_exists('PMLI_Plugin') and pmli_EDITION == "free"){
 
