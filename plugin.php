@@ -436,28 +436,6 @@ else {
 			$options_default = PMLI_Config::createFromFile(self::ROOT_DIR . '/config/options.php')->toArray();
 			update_option($option_name, $options_default);
 
-			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-			require self::ROOT_DIR . '/schema.php';
-			global $wpdb;
-
-			if (function_exists('is_multisite') && is_multisite()) {
-		        // check if it is a network activation - if so, run the activation function for each blog id	        
-		        if (isset($_GET['networkwide']) && ($_GET['networkwide'] == 1)) {
-		            $old_blog = $wpdb->blogid;
-		            // Get all blog ids
-		            $blogids = $wpdb->get_col("SELECT blog_id FROM $wpdb->blogs");
-		            foreach ($blogids as $blog_id) {
-		                switch_to_blog($blog_id);
-		                require self::ROOT_DIR . '/schema.php';
-		                dbDelta($plugin_queries);		                
-		            }
-		            switch_to_blog($old_blog);
-		            return;	         
-		        }	         
-		    }
-
-			dbDelta($plugin_queries);
-
 		}
 
 		/**
