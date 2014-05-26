@@ -89,7 +89,7 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 		// search default translation
 
-		$parentImport = new PMXI_Import_record();
+		$parentImport = new PMXI_Import_Record();
 
 		$parentImport->getById($import->parent_import_id);
 
@@ -267,7 +267,7 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 				if ( ! is_wp_error($txes_list) ) {
 					
-					if (!empty($txes_list)):						
+					if ( ! empty($txes_list) ):
 
 						$assigned_txes = array();
 
@@ -282,44 +282,8 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 								if ( empty($translation) ){
 
 									$el_id = $t->term_taxonomy_id;
-
-									if ($t->term_id == $parent_txes_list[$key]->term_id){
-										$newname = $t->name;
-										if ( $t->name == $parent_txes_list[$key]->name ){
-											$newname = $t->name . ' @' . $import->options['pmli']['lang_code'];
-										}
-										$parent = 0;
-										if ($t->parent){
-											$parent_term = get_term_by('id', $t->parent, $cname);
-											if (!is_wp_error($parent_term)){
-												$parent_parent_tx_trid = $sitepress->get_element_trid( $parent_term->term_taxonomy_id, 'tax_' . $cname );																								
-												$parent_translation = $this->wpdb->get_row( $this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND trid = %d AND language_code = %s AND source_language_code = %s", 'tax_' . $cname, $parent_parent_tx_trid, $import->options['pmli']['lang_code'], $parentImport->options['pmli']['lang_code']) );
-												if (!empty($parent_translation) and !empty($parent_translation->element_id)){
-													$parent = $parent_translation->element_id;
-												}
-											}
-										}
-										
-										$term = wp_insert_term($newname, $cname, array(
-											'parent' => (int) $parent
-										));
-										if (! is_wp_error($term) ){		
-											$el_id = $term['term_taxonomy_id'];
-											$term = get_term_by('id', $term['term_id'], $cname);
-											if (!in_array($term->slug, $assigned_txes)) $assigned_txes[] = $term->slug;
-										}
-										else continue;
-									}
-								    // if translation is equal to default value
-									elseif ( $t->name == $parent_txes_list[$key]->name ) {
-										wp_update_term($t->term_id, $cname, array(
-										  'name' => $t->name . ' @' . $import->options['pmli']['lang_code'],
-										));
-										if (!in_array($t->slug, $assigned_txes)) $assigned_txes[] = $t->slug;
-									}
-									else{
-										$assigned_txes[] = $t->slug;
-									}
+																
+									$assigned_txes[] = $t->slug;
 
 									$this->wpdb->delete( $this->wpdb->prefix . 'icl_translations', array( 'element_type' => 'tax_' . $cname, 'element_id' => $el_id), array( '%s', '%d' ) );	
 
@@ -346,14 +310,11 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 									$term = get_term_by('id', $translation->element_id, $cname);
 
-									if ( !is_wp_error($term) and !in_array($term->slug, $assigned_txes)) $assigned_txes[] = $term->slug;
+									if ( ! is_wp_error($term) and ! in_array($term->slug, $assigned_txes)) $assigned_txes[] = $term->slug;
 
-								}	
-								//$assigned_txes[] = $parent_txes_list[$key]->slug;							
+								}							
 							}
-						}
-
-						wp_set_object_terms($pid, $assigned_txes, $cname);
+						}						
 
 					endif;
 					
@@ -369,6 +330,104 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 		// \[taxonomies]
 
+	}
+
+	public function get_wpmu_parent_id( $t, $parent_id, $cname, $import, $parentImport, & $assigned_txes ){
+
+		global $sitepress;
+
+		$parent_term_default = get_term_by('id', $parent_id, $cname);
+
+		$parent_tx_trid = $sitepress->get_element_trid( $parent_term_default->term_taxonomy_id, 'tax_' . $cname );																								
+							
+		$translation = $this->wpdb->get_row( $this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND trid = %d AND language_code = %s AND source_language_code = %s", 'tax_' . $cname, $parent_tx_trid, $import->options['pmli']['lang_code'], $parentImport->options['pmli']['lang_code']) );								
+
+		$term = false;
+
+		if ( empty($translation) ){
+
+			$el_id = $t->term_taxonomy_id;
+
+			if ( $t->term_id == $parent_term_default->term_id ){
+				$newname = $t->name;
+				if ( $t->name == $parent_term_default->name ){
+					$newname = $t->name . ' @' . $import->options['pmli']['lang_code'];
+				}
+				$parent = 0;
+
+				if ( $t->parent ){
+					
+					$parent_term = get_term_by('id', $t->parent, $cname);
+
+					if ( ! is_wp_error($parent_term) ){
+						
+						$parent = $this->get_wpmu_parent_id($parent_term, $parent_term_default->parent, $cname, $import, $parentImport, $assigned_txes);
+
+					}
+				}
+				
+				$term = wp_insert_term($newname, $cname, array(
+					'parent' => (int) $parent
+				));
+				if ( ! is_wp_error($term) ){
+					$el_id = $term['term_taxonomy_id'];
+					$term = get_term_by('id', $term['term_id'], $cname);
+					if ( ! in_array($term->slug, $assigned_txes) ) $assigned_txes[] = $term->slug;
+					/*$children = get_term_children( $t->term_id, $cname );
+					if (!empty($children)){
+						foreach ($children as $child) {
+							$cc = get_term_by( 'id', $child, $cname );
+							wp_update_term($cc->term_id, $cname, array(
+							  'parent' => $term->term_id,
+							));
+						}
+					}*/
+				}				
+			}
+		    // if translation is equal to default value
+			elseif ( $t->name == $parent_term_default->name ) {
+				wp_update_term($t->term_id, $cname, array(
+				  'name' => $t->name . ' @' . $import->options['pmli']['lang_code'],
+				));
+				$term = get_term_by('id', $t->term_id, $cname);
+				if ( ! in_array($term->slug, $assigned_txes) ) $assigned_txes[] = $term->slug;
+				//return $tt->term_id;
+			}
+			else{
+				$assigned_txes[] = $t->slug;
+			}
+
+			$this->wpdb->delete( $this->wpdb->prefix . 'icl_translations', array( 'element_type' => 'tax_' . $cname, 'element_id' => $el_id), array( '%s', '%d' ) );	
+
+			$this->wpdb->insert(
+				$this->wpdb->prefix . 'icl_translations',
+				array(
+					'element_type' => 'tax_' . $cname, 
+					'element_id' => $el_id,
+					'trid' => $parent_tx_trid,
+					'language_code' => $import->options['pmli']['lang_code'],
+					'source_language_code' => $parentImport->options['pmli']['lang_code']
+				), 
+				array( 
+					'%s', 
+					'%d',
+					'%d',
+					'%s',
+					'%s' 
+				) 
+			);		
+
+			return ($term and ! is_wp_error($term)) ? $term->term_id : $t->term_id;
+		}
+		else {
+
+			$term = get_term_by('id', $translation->element_id, $cname);
+
+			if ( ! is_wp_error($term) and ! in_array($term->slug, $assigned_txes)) $assigned_txes[] = $term->slug;
+
+			return ( ! is_wp_error($term) ) ? $translation->element_id : 0;
+
+		}
 	}
 
 	public function _filter_has_cap_unfiltered_html($caps)
