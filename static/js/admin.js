@@ -3,7 +3,7 @@
  */
 (function($){$(function () {
 	
-	if ( ! $('body.pmxi_plugin').length) return; // do not execute any code if we are not on plugin page
+	if ( ! $('body.wpallimport-plugin').length) return; // do not execute any code if we are not on plugin page
 
 	
 });})(jQuery);

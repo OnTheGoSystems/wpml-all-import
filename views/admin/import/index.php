@@ -1,9 +1,9 @@
-<div class="pmxi_collapsed closed">
-	<div class="pmxi_content_section">
-		<div class="pmxi_collapsed_header">
+<div class="wpallimport-collapsed closed">
+	<div class="wpallimport-content-section">
+		<div class="wpallimport-collapsed-header">
 			<h3><?php _e('WPML Add-On','pmxi_plugin');?></h3>	
 		</div>
-		<div class="pmxi_collapsed_content">
+		<div class="wpallimport-collapsed-content">
 			<table class="form-table" style="max-width:none;">
 				<tr>
 					<td colspan="3" style="padding-top:20px;">					
@@ -14,7 +14,7 @@
 								<div class="input">
 									<label><?php _e("Unique key"); ?></label>						
 									<input type="text" class="smaller-text" name="pmli_unique_key" style="width:300px;" value="<?php echo esc_attr($post['pmli_unique_key']) ?>"/>
-									<a href="#help" class="help" title="<?php _e('Plugin will going across parent import to find record for translation. In case, when plugin will not found the parent record, then translation will not created.', 'pmxi_plugin') ?>">?</a>
+									<a href="#help" class="wpallimport-help" title="<?php _e('Plugin will going across parent import to find record for translation. In case, when plugin will not found the parent record, then translation will not created.', 'pmxi_plugin') ?>">?</a>
 								</div>
 							</div>
 							<input type="radio" id="pmli_manual_matching_<?php echo $post_type; ?>" class="switcher" name="pmli_duplicate_matching" value="manual" <?php echo 'manual' == $post['pmli_duplicate_matching'] ? 'checked="checked"': '' ?>/>
