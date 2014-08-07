@@ -18,14 +18,14 @@ function pmli_pmxi_parent_category($cc, $cname){
 				}
 			}
 		}
-		elseif( ! empty(PMXI_Plugin::$session->data['pmxi_import'])){
-			if ( PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_is_translate_taxonomies'] ){	
-				if (PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_translate_taxonomies_logic'] == "all_except" and !empty(PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list']) 
-					and is_array(PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list']) and in_array($cname, PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list'])) return $cc;
-				if (PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_translate_taxonomies_logic'] == "only" and ((!empty(PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list']) 
-					and is_array(PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list']) and ! in_array($cname, PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list'])) or empty(PMXI_Plugin::$session->data['pmxi_import']['options']['pmli_taxonomies_list']))) return $cc;
+		elseif( ! empty(PMXI_Plugin::$session->options)){
+			if ( PMXI_Plugin::$session->options['pmli_is_translate_taxonomies'] ){	
+				if (PMXI_Plugin::$session->options['pmli_translate_taxonomies_logic'] == "all_except" and !empty(PMXI_Plugin::$session->options['pmli_taxonomies_list']) 
+					and is_array(PMXI_Plugin::$session->options['pmli_taxonomies_list']) and in_array($cname, PMXI_Plugin::$session->options['pmli_taxonomies_list'])) return $cc;
+				if (PMXI_Plugin::$session->options['pmli_translate_taxonomies_logic'] == "only" and ((!empty(PMXI_Plugin::$session->options['pmli_taxonomies_list']) 
+					and is_array(PMXI_Plugin::$session->options['pmli_taxonomies_list']) and ! in_array($cname, PMXI_Plugin::$session->options['pmli_taxonomies_list'])) or empty(PMXI_Plugin::$session->options['pmli_taxonomies_list']))) return $cc;
 
-				$cc .= ' @' . PMXI_Plugin::$session->data['pmxi_import']['options']['pmli']['lang_code'];
+				$cc .= ' @' . PMXI_Plugin::$session->options['pmli']['lang_code'];
 				return $cc;
 			}
 		}
