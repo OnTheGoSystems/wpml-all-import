@@ -7,7 +7,10 @@ function pmli_pmxi_options_header($isWizard, $post){
 
 	//if (! empty($_GET['lng'])):
 	?>
-	<h4><?php _e('WPML addon: options for '. $langs[$lng_code]['display_name'] .' language', 'pmxi_plugin' ); ?>  <img width="18" height="12" src="<?php echo ICL_PLUGIN_URL . '/res/flags/' . $langs[$lng_code]['code'] . '.png'; ?>" style="position:relative; top: 2px;"/> </h4>
+
+	<div class="updated inline">
+		<p><?php _e('<strong>WPML addon</strong>: options for '. $langs[$lng_code]['display_name'] .' language', 'pmxi_plugin' ); ?>  <img width="18" height="12" src="<?php echo ICL_PLUGIN_URL . '/res/flags/' . $langs[$lng_code]['code'] . '.png'; ?>" style="position:relative; top: 2px;"/></p>
+	</div>	
 	<?php
 	/*elseif ( ! empty($post['pmli']) ):
 	?>

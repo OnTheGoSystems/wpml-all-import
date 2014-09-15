@@ -5,8 +5,7 @@ $columns = array(
 	'name'		=> __('File', 'pmxi_plugin'),
 	'actions'	=> '',	
 	'summary'	=> __('Summary', 'pmxi_plugin'),
-	'info'		=> __('Info & Options', 'pmxi_plugin'),	
-	'delete'	=> '',
+	'info'		=> __('Info & Options', 'pmxi_plugin'),		
 );
 
 $columns = apply_filters('pmxi_manage_imports_columns', $columns);
@@ -16,9 +15,7 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 <?php $class = $parent_class; ?>
 
 <?php if ( ! $list->isEmpty()): ?>
-	<?php			
-	//$class = $parent_class;
-	?>
+	
 	<?php foreach ($list as $item): ?>
 		
 		<tr class="<?php echo $class; ?>" valign="middle">					
@@ -59,10 +56,26 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 						break;
 					case 'name':
 						?>
-						<td style="padding-left:20px;">
-							<strong><?php echo apply_filters("pmxi_import_name", (!empty($item['friendly_name'])) ? $item['friendly_name'] : $item['name'], $item['id']); ?></strong> <?php if ( (int) $item['triggered']) _e("<i> -> Import triggered...</i>"); if ( (int) $item['processing']) _e("<i> -> Import currently in progress....</i>");  ?><br>
+						<td style="padding-left: 30px;">
+							<strong><?php echo apply_filters("pmxi_import_name", (!empty($item['friendly_name'])) ? $item['friendly_name'] : $item['name'], $item['id']); ?></strong><br>																		
+
 							<?php if ($item['path']): ?>
+								<?php if ( in_array($item['type'], array('upload'))): ?>
+									<?php
+									$path = $item['path'];
+									$path_parts = pathinfo($item['path']);
+									if ( ! empty($path_parts['dirname'])){
+										$path_all_parts = explode('/', $path_parts['dirname']);
+										$dirname = array_pop($path_all_parts);
+										if ( pmxi_isValidMd5($dirname)){								
+											$path = str_replace($dirname . '/', '', str_replace('temp/', '', $item['path']));
+										}
+									}
+									?>
+									<em><?php echo str_replace("\\", '/', preg_replace('%^(\w+://[^:]+:)[^@]+@%', '$1*****@', $path)); ?></em>
+								<?php else:?>
 								<em><?php echo str_replace("\\", '/', preg_replace('%^(\w+://[^:]+:)[^@]+@%', '$1*****@', $item['path'])); ?></em>
+								<?php endif; ?>
 							<?php endif ?>
 							<div class="row-actions">
 
@@ -71,11 +84,21 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 								<?php
 
 									$import_actions = array(
-										'import_settings' => array( 
-											'url' => ( ! $item['processing'] and ! $item['executing'] ) ? add_query_arg(array('id' => $item['id'], 'action' => 'options'), $this->baseUrl) : 'javascript:void(0);',  
-											'title' => __('Change File / Import Settings', 'pmxi_plugin'), 
+										'import_template' => array(
+											'url' => ( ! $item['processing'] and ! $item['executing'] ) ? add_query_arg(array('id' => $item['id'], 'action' => 'edit'), $this->baseUrl) : '',
+											'title' => __('Edit Import', 'pmxi_plugin'),
 											'class' => 'edit'
-										),																																	
+										),
+										'import_settings' => array( 
+											'url' => ( ! $item['processing'] and ! $item['executing'] ) ? add_query_arg(array('id' => $item['id'], 'action' => 'options'), $this->baseUrl) : '',  
+											'title' => __('Import Settings', 'pmxi_plugin'), 
+											'class' => 'edit'
+										),						
+										'delete' => array( 
+											'url' => add_query_arg(array('id' => $item['id'], 'action' => 'delete'), $this->baseUrl),  
+											'title' => __('Delete', 'pmxi_plugin'), 
+											'class' => 'delete'
+										),																												
 									);
 									
 									$import_actions = apply_filters('pmxi_import_actions', $import_actions, $item );
@@ -85,7 +108,13 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 										switch ($key) {
 											default:
 												?>
-												<span class="<?php echo $action['class']; ?>"><a class="<?php echo $action['class']; ?>" href="<?php echo esc_url($action['url']); ?>"><?php echo $action['title']; ?></a></span> <?php if ($ai != count($import_actions)): ?>|<?php endif; ?>
+												<span class="<?php echo $action['class']; ?>">
+													<?php if ( ! empty($action['url']) ): ?>
+													<a class="<?php echo $action['class']; ?>" href="<?php echo esc_url($action['url']); ?>"><?php echo $action['title']; ?></a>
+													<?php else: ?>
+													<span class="wpallimport-disabled"><?php echo $action['title']; ?></span>
+													<?php endif; ?>
+												</span> <?php if ($ai != count($import_actions)): ?>|<?php endif; ?>
 												<?php
 												break;
 										}												
@@ -102,25 +131,67 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 						?>
 						<td>
 							<?php 
-
-							if ($item['processing']){
-								_e('currently processing via cron', 'pmxi_plugin');
+							if ($item['triggered'] and ! $item['processing']){
+								_e('triggered with cron', 'pmxi_plugin');
+								if ($item['last_activity'] != '0000-00-00 00:00:00'){
+									$diff = ceil((time() - strtotime($item['last_activity']))/60);
+									?>
+									<br>
+									<span <?php if ($diff >= 10) echo 'style="color:red;"';?>>
+									<?php
+										printf(__('last activity %s ago', 'pmxi_plugin'), human_time_diff(strtotime($item['last_activity']), time()));
+									?>
+									</span>
+									<?php
+								}
+							}
+							elseif ($item['processing']){
+								_e('currently processing with cron', 'pmxi_plugin'); echo '<br/>';
+								printf('Records Processed %s', $item['imported']);
+								if ($item['last_activity'] != '0000-00-00 00:00:00'){
+									$diff = ceil((time() - strtotime($item['last_activity']))/60);
+									?>
+									<br>
+									<span <?php if ($diff >= 10) echo 'style="color:red;"';?>>
+									<?php
+										printf(__('last activity %s ago', 'pmxi_plugin'), human_time_diff(strtotime($item['last_activity']), time()));
+									?>
+									</span>
+									<?php
+								}
 							}
 							elseif($item['executing']){
 								_e('Import currently in progress', 'pmxi_plugin');
+								if ($item['last_activity'] != '0000-00-00 00:00:00'){
+									$diff = ceil((time() - strtotime($item['last_activity']))/60);
+									?>
+									<br>
+									<span <?php if ($diff >= 10) echo 'style="color:red;"';?>>
+									<?php
+										printf(__('last activity %s ago', 'pmxi_plugin'), human_time_diff(strtotime($item['last_activity']), time()));
+									?>
+									</span>
+									<?php
+								}
 							}
 							elseif($item['canceled'] and $item['canceled_on'] != '0000-00-00 00:00:00'){
-								printf(__('Import Attempt at %s', 'pmxi_plugin'), mysql2date("m/d/Y g:i a", $item['canceled_on'])); echo '<br/>';
+								printf(__('Import Attempt at %s', 'pmxi_plugin'), get_date_from_gmt($item['canceled_on'], "m/d/Y g:i a")); echo '<br/>';
 								_e('Import canceled', 'pmxi_plugin');
+							}
+							elseif($item['failed'] and $item['failed_on'] != '0000-00-00 00:00:00'){
+								printf(__('Import Attempt at %s', 'pmxi_plugin'), get_date_from_gmt($item['failed_on'], "m/d/Y g:i a")); echo '<br/>';
+								_e('Import failed, please check logs', 'pmxi_plugin');
 							}
 							else{
 								$custom_type = get_post_type_object( $item['options']['custom_type'] );
-								printf(__('Last run: %s', 'pmxi_plugin'), ($item['registered_on'] == '0000-00-00 00:00:00') ? __('never', 'pmxi_plugin') : mysql2date("m/d/Y g:i a", $item['registered_on'])); echo '<br/>';
-								printf(__('%d %ss created', 'pmxi_plugin'), $item['created'], $custom_type->labels->singular_name); echo '<br/>';
+								$cpt_name = ( ! empty($custom_type)) ? $custom_type->labels->singular_name : '';
+								printf(__('Last run: %s', 'pmxi_plugin'), ($item['registered_on'] == '0000-00-00 00:00:00') ? __('never', 'pmxi_plugin') : get_date_from_gmt($item['registered_on'], "m/d/Y g:i a")); echo '<br/>';
+								printf(__('%d %ss created', 'pmxi_plugin'), $item['created'], $cpt_name); echo '<br/>';
 								printf(__('%d updated, %d skipped, %d deleted'), $item['updated'], $item['skipped'], $item['deleted']);
+								//printf(__('%d records', 'pmxi_plugin'), $item['post_count']);
 							}
 
-							if ($item['settings_update_on'] != '0000-00-00 00:00:00' and strtotime($item['settings_update_on']) > strtotime($item['registered_on'])){
+							if ($item['settings_update_on'] != '0000-00-00 00:00:00' and $item['last_activity'] != '0000-00-00 00:00:00' and strtotime($item['settings_update_on']) > strtotime($item['last_activity'])){
 								echo '<br/>';
 								?>
 								<strong><?php _e('settings edited since last run', 'pmxi_plugin'); ?></strong>																				
@@ -134,34 +205,28 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 					case 'info':
 						?>
 						<td>
-							<?php if ( in_array($item['type'], array('url', 'ftp', 'file'))):?>
+									
 							<a href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'scheduling'), $this->baseUrl)?>"><?php _e('Cron Scheduling', 'pmxi_plugin'); ?></a> <br>
-							<?php endif; ?>
+							
 							<a href="<?php echo add_query_arg(array('page' => 'pmxi-admin-history', 'id' => $item['id']), $this->baseUrl)?>"><?php _e('Import History Logs', 'pmxi_plugin'); ?></a>
+
 						</td>
 						<?php
 						break;
 					case 'actions':
 						?>
-						<td>
+						<td style="width: 130px;">
 							<?php if ( ! $item['processing'] and ! $item['executing'] ): ?>
-							<h2 style="float:left;"><a class="add-new-h2" href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'edit'), $this->baseUrl); ?>"><?php _e('Edit', 'pmxi_plugin'); ?></a></h2>
+							<!--h2 style="float:left;"><a class="add-new-h2" href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'edit'), $this->baseUrl); ?>"><?php _e('Edit', 'pmxi_plugin'); ?></a></h2-->
 							<h2 style="float:left;"><a class="add-new-h2" href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'update'), $this->baseUrl); ?>"><?php _e('Run Import', 'pmxi_plugin'); ?></a></h2>
 							<?php elseif ($item['processing']) : ?>
-							<h2 style="float:left;"><a class="add-new-h2" href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'cancel'), $this->baseUrl); ?>"><?php _e('Cancel Cron Processing', 'pmxi_plugin'); ?></a></h2>
+							<h2 style="float:left;"><a class="add-new-h2" href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'cancel'), $this->baseUrl); ?>"><?php _e('Cancel Cron', 'pmxi_plugin'); ?></a></h2>
 							<?php elseif ($item['executing']) : ?>
 							<h2 style="float:left;"><a class="add-new-h2" href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'cancel'), $this->baseUrl); ?>"><?php _e('Cancel', 'pmxi_plugin'); ?></a></h2>
 							<?php endif; ?>
 						</td>
 						<?php
-						break;
-					case 'delete':
-						?>
-						<td>
-							<span class="delete"><a href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'delete'), $this->baseUrl)?>" class="delete">X</a></span>
-						</td>
-						<?php
-						break;
+						break;					
 					default:
 						?>
 						<td>

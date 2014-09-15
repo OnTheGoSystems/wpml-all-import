@@ -7,7 +7,9 @@ function pmli_pmxi_template_header($isWizard, $post){
 
 	//if (empty($post['pmli'])):
 	?>
-	<h4><?php _e('WPML addon: template for '. $langs[$lng_code]['display_name'] .' language', 'pmxi_plugin' ); ?>  <img width="18" height="12" src="<?php echo ICL_PLUGIN_URL . '/res/flags/' . $langs[$lng_code]['code'] . '.png'; ?>" style="position:relative; top: 2px;"/> </h4>
+	<div class="updated inline">
+		<p><?php _e('<strong>WPML addon</strong>: template for '. $langs[$lng_code]['display_name'] .' language', 'pmxi_plugin' ); ?>   <img width="18" height="12" src="<?php echo ICL_PLUGIN_URL . '/res/flags/' . $langs[$lng_code]['code'] . '.png'; ?>" style="position:relative; top: 2px;"/></p>
+	</div>	
 	<?php
 /*	else:
 	?>
