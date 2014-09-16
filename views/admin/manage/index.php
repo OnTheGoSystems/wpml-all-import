@@ -208,7 +208,7 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 									
 							<a href="<?php echo add_query_arg(array('id' => $item['id'], 'action' => 'scheduling'), $this->baseUrl)?>"><?php _e('Cron Scheduling', 'pmxi_plugin'); ?></a> <br>
 							
-							<a href="<?php echo add_query_arg(array('page' => 'pmxi-admin-history', 'id' => $item['id']), $this->baseUrl)?>"><?php _e('Import History Logs', 'pmxi_plugin'); ?></a>
+							<a href="<?php echo add_query_arg(array('page' => 'pmxi-admin-history', 'id' => $item['id']), $this->baseUrl)?>"><?php _e('History Logs', 'pmxi_plugin'); ?></a>
 
 						</td>
 						<?php
