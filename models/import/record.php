@@ -56,6 +56,8 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 
 	public function import($importData = array()){ //$pid, $i, $import, $articleData, $xml, $is_cron = false, $xpath_prefix = ""
 
+		$importData['logger'] and call_user_func($importData['logger'], __('<strong>WPML ADD-ON:</strong>', 'pmxi_plugin'));
+
 		if ( empty($importData['import']->parent_import_id) ){ 			
 
 			$translation = $this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM ". $this->wpdb->prefix . "icl_translations WHERE element_type = %s AND element_id = %d AND language_code = %s", 'post_' . get_post_type($importData['pid']), $importData['pid'], $importData['import']->options['pmli']['lang_code']));				
@@ -77,6 +79,8 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 						'%s'							
 					) 
 				);
+
+				$importData['logger'] and call_user_func($importData['logger'], sprintf(__('- Created `%s` translation for `%s`', 'pmxi_plugin'), $importData['import']->options['pmli']['lang_code'], $importData['articleData']['post_title']));
 				
 			}			
 
@@ -194,7 +198,9 @@ class PMLI_Import_Record extends PMLI_Model_Record {
 				'%s',
 				'%s' 
 			) 
-		);		
+		);	
+
+		$logger and call_user_func($logger, sprintf(__('- Created `%s` translation for `%s`', 'pmxi_plugin'), $import->options['pmli']['lang_code'], $parent_post->post_title));	
 		
 	}	
 
