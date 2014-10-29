@@ -17,7 +17,7 @@ function pmli_admin_notices() {
 		
 	}
 
-	if ( class_exists( 'PMXI_Plugin' ) and ( version_compare(PMXI_VERSION, '4.0.0 RC1') < 0 and PMXI_EDITION == 'paid' or version_compare(PMXI_VERSION, '3.1.3') <= 0 and PMXI_EDITION == 'free') ) {
+	if ( class_exists( 'PMXI_Plugin' ) and ( version_compare(PMXI_VERSION, '4.0.0-beta1') < 0 and PMXI_EDITION == 'paid' or version_compare(PMXI_VERSION, '3.1.3') <= 0 and PMXI_EDITION == 'free') ) {
 		?>
 		<div class="error"><p>
 			<?php printf(

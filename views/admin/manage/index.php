@@ -68,11 +68,11 @@ $columns = apply_filters('pmxi_manage_imports_columns', $columns);
 										$path_all_parts = explode('/', $path_parts['dirname']);
 										$dirname = array_pop($path_all_parts);
 										if ( pmxi_isValidMd5($dirname)){								
-											$path = str_replace($dirname . '/', '', str_replace('temp/', '', $item['path']));
+											$path = str_replace($dirname, preg_replace('%^(.{3}).*(.{3})$%', '$1***$2', $dirname), str_replace('temp/', '', $item['path']));
 										}
 									}
 									?>
-									<em><?php echo str_replace("\\", '/', preg_replace('%^(\w+://[^:]+:)[^@]+@%', '$1*****@', $path)); ?></em>
+									<em><?php echo $path; ?></em>
 								<?php else:?>
 								<em><?php echo str_replace("\\", '/', preg_replace('%^(\w+://[^:]+:)[^@]+@%', '$1*****@', $item['path'])); ?></em>
 								<?php endif; ?>
