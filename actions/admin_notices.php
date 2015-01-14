@@ -13,7 +13,7 @@ function pmli_admin_notices() {
 		</p></div>
 		<?php
 		
-		deactivate_plugins( PMLI_ROOT_DIR . '/plugin.php');
+		deactivate_plugins( PMLI_ROOT_DIR . '/wpai-wpml-add-on.php');
 		
 	}
 
@@ -27,7 +27,7 @@ function pmli_admin_notices() {
 		</p></div>
 		<?php
 		
-		deactivate_plugins( PMLI_ROOT_DIR . '/plugin.php');
+		deactivate_plugins( PMLI_ROOT_DIR . '/wpai-wpml-add-on.php');
 	}
 
 	if ( ! class_exists( 'SitePress' ) ) {
@@ -40,7 +40,7 @@ function pmli_admin_notices() {
 		</p></div>
 		<?php
 		
-		deactivate_plugins( PMLI_ROOT_DIR . '/plugin.php');
+		deactivate_plugins( PMLI_ROOT_DIR . '/wpai-wpml-add-on.php');
 		
 	}
 
