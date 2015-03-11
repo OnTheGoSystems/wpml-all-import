@@ -62,16 +62,16 @@
 										<input type="radio" id="pmli_translate_taxonomies_logic_all_except_<?php echo $post_type; ?>" name="pmli_translate_taxonomies_logic" value="all_except" <?php echo ( "all_except" == $post['pmli_translate_taxonomies_logic'] ) ? 'checked="checked"': '' ?> class="switcher"/>
 										<label for="pmli_translate_taxonomies_logic_all_except_<?php echo $post_type; ?>" style="position:relative; top:1px;"><?php _e('Leave these taxonomies alone, translate all others', 'pmxi_plugin') ?></label>
 										<div class="switcher-target-pmli_translate_taxonomies_logic_all_except_<?php echo $post_type; ?> pmxi_choosen" style="padding-left:17px;">							
-											<span class="hidden choosen_values"><?php if (!empty($existing_taxonomies)) echo implode(',', $existing_taxonomies);?></span>
-											<input class="choosen_input" value="<?php if (!empty($post['pmli_taxonomies_list']) and "all_except" == $post['pmli_translate_taxonomies_logic']) echo implode(',', $post['pmli_taxonomies_list']); ?>" type="hidden" name="pmli_taxonomies_except_list"/>																				
+											<span class="hidden choosen_values"><?php if (!empty($existing_taxonomies)) echo esc_html(implode(',', $existing_taxonomies));?></span>
+											<input class="choosen_input" value="<?php if (!empty($post['pmli_taxonomies_list']) and "all_except" == $post['pmli_translate_taxonomies_logic']) echo esc_html(implode(',', $post['pmli_taxonomies_list'])); ?>" type="hidden" name="pmli_taxonomies_except_list"/>																				
 										</div>
 									</div>
 									<div class="input" style="margin-bottom:3px;">								
 										<input type="radio" id="pmli_translate_taxonomies_logic_only_<?php echo $post_type; ?>" name="pmli_translate_taxonomies_logic" value="only" <?php echo ( "only" == $post['pmli_translate_taxonomies_logic'] ) ? 'checked="checked"': '' ?> class="switcher"/>
 										<label for="pmli_translate_taxonomies_logic_only_<?php echo $post_type; ?>" style="position:relative; top:1px;"><?php _e('Translate only these taxonomies, leave the rest alone', 'pmxi_plugin') ?></label>
 										<div class="switcher-target-pmli_translate_taxonomies_logic_only_<?php echo $post_type; ?> pmxi_choosen" style="padding-left:17px;">							
-											<span class="hidden choosen_values"><?php if (!empty($existing_taxonomies)) echo implode(',', $existing_taxonomies);?></span>
-											<input class="choosen_input" value="<?php if (!empty($post['pmli_taxonomies_list']) and "only" == $post['pmli_translate_taxonomies_logic']) echo implode(',', $post['pmli_taxonomies_list']); ?>" type="hidden" name="pmli_taxonomies_only_list"/>										
+											<span class="hidden choosen_values"><?php if (!empty($existing_taxonomies)) echo esc_html(implode(',', $existing_taxonomies));?></span>
+											<input class="choosen_input" value="<?php if (!empty($post['pmli_taxonomies_list']) and "only" == $post['pmli_translate_taxonomies_logic']) echo esc_html(implode(',', $post['pmli_taxonomies_list'])); ?>" type="hidden" name="pmli_taxonomies_only_list"/>										
 										</div>
 									</div>					
 								</div>
