@@ -1,501 +1,358 @@
 <?php
+
 /*
-Plugin Name: WP All Import - WPML Add-On
-Plugin URI: http://www.wpallimport.com/
-Description: Import to WPML. Requires WP All Import & WPML.
-Version: 1.0.1 RC1
-Author: Soflyy
+	Plugin Name: WP All Import - WPML Add-On
+	Plugin URI: http://wpml.org
+	Description: Import multilingual content to WordPress. Requires WP All Import & WPML.
+	Version: 2.0.0
+	Author: OnTheGoSystems
+	Author URI: http://www.onthegosystems.com/
 */
-/**
- * Plugin root dir with forward slashes as directory separator regardless of actuall DIRECTORY_SEPARATOR value
- * @var string
- */
-define('PMLI_ROOT_DIR', str_replace('\\', '/', dirname(__FILE__)));
-/**
- * Plugin root url for referencing static content
- * @var string
- */
-define('PMLI_ROOT_URL', rtrim(plugin_dir_url(__FILE__), '/'));
-/**
- * Plugin prefix for making names unique (be aware that this variable is used in conjuction with naming convention,
- * i.e. in order to change it one must not only modify this constant but also rename all constants, classes and functions which
- * names composed using this prefix)
- * @var string
- */
-define('PMLI_PREFIX', 'pmli_');
 
-define('PMLI_VERSION', '1.0.1 RC1');
+require_once "includes/rapid-addon.php";
 
-if ( class_exists('PMLI_Plugin') and pmli_EDITION == "free"){
-
-	function pmli_notice(){
-		
-		?>
-		<div class="error"><p>
-			<?php printf(__('Please de-activate and remove the free version of the WooCommere add-on before activating the paid version.', 'PMLI_Plugin'));
-			?>
-		</p></div>
-		<?php				
-
-		deactivate_plugins(PMLI_ROOT_DIR . '/plugin.php');
-
-	}
-
-	add_action('admin_notices', 'pmli_notice');	
-
-}
-else {
-
-	define('PMLI_EDITION', 'paid');
+if ( ! class_exists('WPAI_WPML') )
+{
 
 	/**
-	 * Main plugin file, Introduces MVC pattern
+	 * Plugin root dir with forward slashes as directory separator regardless of actuall DIRECTORY_SEPARATOR value
+	 * @var string
+	 */
+	define('WPAI_WPML_ROOT_DIR', str_replace('\\', '/', dirname(__FILE__)));
+	/**
+	 * Plugin root url for referencing static content
+	 * @var string
+	 */
+	define('WPAI_WPML_ROOT_URL', rtrim(plugin_dir_url(__FILE__), '/'));
+
+	/**
+	 * Main plugin file
 	 *
 	 * @singletone
 	 * @author Max Tsiplyakov <makstsiplyakov@gmail.com>
 	 */
+	final class WPAI_WPML
+	{
 
-	final class PMLI_Plugin {
 		/**
 		 * Singletone instance
-		 * @var pmli_Plugin
+		 * @var WPAI_WPML
 		 */
 		protected static $instance;
-
-		/**
-		 * Plugin options
-		 * @var array
-		 */
-		protected $options = array();
-
 		/**
 		 * Plugin root dir
 		 * @var string
 		 */
-		const ROOT_DIR = PMLI_ROOT_DIR;
+		const ROOT_DIR = WPAI_WPML_ROOT_DIR;
 		/**
 		 * Plugin root URL
 		 * @var string
 		 */
-		const ROOT_URL = PMLI_ROOT_URL;
-		/**
-		 * Prefix used for names of shortcodes, action handlers, filter functions etc.
-		 * @var string
-		 */
-		const PREFIX = PMLI_PREFIX;
-		/**
-		 * Plugin file path
-		 * @var string
-		 */
-		const FILE = __FILE__;	
-
+		const ROOT_URL = WPAI_WPML_ROOT_URL;
 		/**
 		 * Return singletone instance
-		 * @return pmli_Plugin
+		 * @return WPAI_WPML
 		 */
-		static public function getInstance() {
-			if (self::$instance == NULL) {
+		static public function getInstance() 
+		{
+			if (self::$instance == NULL) 
+			{
 				self::$instance = new self();
 			}
 			return self::$instance;
 		}
 
-		static public function getEddName(){
-			return 'WPML Add-On';
-		}
+		public $wpml_addon;
+		public $wpml;
 
-		/**
-		 * Common logic for requestin plugin info fields
-		 */
-		public function __call($method, $args) {
-			if (preg_match('%^get(.+)%i', $method, $mtch)) {
-				$info = get_plugin_data(self::FILE);
-				if (isset($info[$mtch[1]])) {
-					return $info[$mtch[1]];
-				}
-			}
-			throw new Exception("Requested method " . get_class($this) . "::$method doesn't exist.");
-		}
+		private $current_language;
+		private $default_language;
+		private $language_code;
 
-		/**
-		 * Get path to plagin dir relative to wordpress root
-		 * @param bool[optional] $noForwardSlash Whether path should be returned withot forwarding slash
-		 * @return string
-		 */
-		public function getRelativePath($noForwardSlash = false) {
-			$wp_root = str_replace('\\', '/', ABSPATH);
-			return ($noForwardSlash ? '' : '/') . str_replace($wp_root, '', self::ROOT_DIR);
-		}
+		private function __construct()
+		{			
+			$this->wpml_addon = new RapidAddon('WPML Add-On', 'wpml_addon');						
 
-		/**
-		 * Check whether plugin is activated as network one
-		 * @return bool
-		 */
-		public function isNetwork() {
-			if ( !is_multisite() )
-			return false;
+			$this->wpml_addon->set_import_function( array( &$this, 'import') );
+			$this->wpml_addon->set_post_saved_function( array( &$this, 'saved') );
 
-			$plugins = get_site_option('active_sitewide_plugins');
-			if (isset($plugins[plugin_basename(self::FILE)]))
-				return true;
-
-			return false;
-		}
-
-		/**
-		 * Check whether permalinks is enabled
-		 * @return bool
-		 */
-		public function isPermalinks() {
-			global $wp_rewrite;
-
-			return $wp_rewrite->using_permalinks();
-		}
-
-		/**
-		 * Return prefix for plugin database tables
-		 * @return string
-		 */
-		public function getTablePrefix() {
-			global $wpdb;
-			return ($this->isNetwork() ? $wpdb->base_prefix : $wpdb->prefix) . self::PREFIX;
-		}
-
-		/**
-		 * Return prefix for wordpress database tables
-		 * @return string
-		 */
-		public function getWPPrefix() {
-			global $wpdb;
-			return ($this->isNetwork() ? $wpdb->base_prefix : $wpdb->prefix);
-		}
-
-		/**
-		 * Class constructor containing dispatching logic
-		 * @param string $rootDir Plugin root dir
-		 * @param string $pluginFilePath Plugin main file
-		 */
-		protected function __construct() {
-
-			// create/update required database tables
-
-			// regirster autoloading method
-			if (function_exists('__autoload') and ! in_array('__autoload', spl_autoload_functions())) { // make sure old way of autoloading classes is not broken
-				spl_autoload_register('__autoload');
-			}
-			spl_autoload_register(array($this, '__autoload'));		
-
-			// register helpers
-			if (is_dir(self::ROOT_DIR . '/helpers')) foreach (PMLI_Helper::safe_glob(self::ROOT_DIR . '/helpers/*.php', PMLI_Helper::GLOB_RECURSE | PMLI_Helper::GLOB_PATH) as $filePath) {
-				require_once $filePath;
-			}
-
-			// init plugin options
-			$option_name = get_class($this) . '_Options';
-			$options_default = PMLI_Config::createFromFile(self::ROOT_DIR . '/config/options.php')->toArray();
-			$this->options = array_intersect_key(get_option($option_name, array()), $options_default) + $options_default;
-			$this->options = array_intersect_key($options_default, array_flip(array('info_api_url'))) + $this->options; // make sure hidden options apply upon plugin reactivation		
-
-			update_option($option_name, $this->options);
-			$this->options = get_option(get_class($this) . '_Options');
-
-			register_activation_hook(self::FILE, array($this, '__activation'));
-
-			// register action handlers
-			if (is_dir(self::ROOT_DIR . '/actions')) if (is_dir(self::ROOT_DIR . '/actions')) foreach (PMLI_Helper::safe_glob(self::ROOT_DIR . '/actions/*.php', PMLI_Helper::GLOB_RECURSE | PMLI_Helper::GLOB_PATH) as $filePath) {
-				require_once $filePath;
-				$function = $actionName = basename($filePath, '.php');
-				if (preg_match('%^(.+?)[_-](\d+)$%', $actionName, $m)) {
-					$actionName = $m[1];
-					$priority = intval($m[2]);
-				} else {
-					$priority = 10;
-				}
-				add_action($actionName, self::PREFIX . str_replace('-', '_', $function), $priority, 99); // since we don't know at this point how many parameters each plugin expects, we make sure they will be provided with all of them (it's unlikely any developer will specify more than 99 parameters in a function)
-			}
-
-			// register filter handlers
-			if (is_dir(self::ROOT_DIR . '/filters')) foreach (PMLI_Helper::safe_glob(self::ROOT_DIR . '/filters/*.php', PMLI_Helper::GLOB_RECURSE | PMLI_Helper::GLOB_PATH) as $filePath) {
-				require_once $filePath;
-				$function = $actionName = basename($filePath, '.php');
-				if (preg_match('%^(.+?)[_-](\d+)$%', $actionName, $m)) {
-					$actionName = $m[1];
-					$priority = intval($m[2]);
-				} else {
-					$priority = 10;
-				}
-				add_filter($actionName, self::PREFIX . str_replace('-', '_', $function), $priority, 99); // since we don't know at this point how many parameters each plugin expects, we make sure they will be provided with all of them (it's unlikely any developer will specify more than 99 parameters in a function)
-			}
-
-			// register shortcodes handlers
-			if (is_dir(self::ROOT_DIR . '/shortcodes')) foreach (PMLI_Helper::safe_glob(self::ROOT_DIR . '/shortcodes/*.php', PMLI_Helper::GLOB_RECURSE | PMLI_Helper::GLOB_PATH) as $filePath) {
-				$tag = strtolower(str_replace('/', '_', preg_replace('%^' . preg_quote(self::ROOT_DIR . '/shortcodes/', '%') . '|\.php$%', '', $filePath)));
-				add_shortcode($tag, array($this, 'shortcodeDispatcher'));
-			}
-
-			// register admin page pre-dispatcher
-			add_action('admin_init', array($this, '__adminInit'));		
-			add_action('admin_init', array($this, '__update_options'));	
-
-		}
-
-		/**
-		 * pre-dispatching logic for admin page controllers
-		 */
-		public function __adminInit() {
-			$input = new PMLI_Input();
-			$page = strtolower($input->getpost('page', ''));
-			if (preg_match('%^' . preg_quote(str_replace('_', '-', self::PREFIX), '%') . '([\w-]+)$%', $page)) {
-				$this->adminDispatcher($page, strtolower($input->getpost('action', 'index')));
-			}
-		}
-
-		public function __update_options(){			
-
-			if ( class_exists( 'PMXI_Plugin' ) ){ 
-
-				$imports = new PMXI_Import_List();
-				
-				foreach ($imports->setColumns($imports->getTable() . '.*')->getBy(array('parent_import_id' => 0))->convertRecords() as $imp){
-					
-					$imp->getById($imp->id);				
-					
-					if ( ! $imp->isEmpty() and !empty($imp->options) and empty($imp->options['pmli']['lang_code'])){									
-
-						$options = $imp->options + self::get_default_import_options();						
-
-						$imp->set(array(
-							'options' => $options
-						))->update();
-						
-					}
-				}
-			}
-			
-		}
-
-		/**
-		 * Dispatch shorttag: create corresponding controller instance and call its index method
-		 * @param array $args Shortcode tag attributes
-		 * @param string $content Shortcode tag content
-		 * @param string $tag Shortcode tag name which is being dispatched
-		 * @return string
-		 */
-		public function shortcodeDispatcher($args, $content, $tag) {
-
-			$controllerName = self::PREFIX . preg_replace('%(^|_).%e', 'strtoupper("$0")', $tag); // capitalize first letters of class name parts and add prefix
-			$controller = new $controllerName();
-			if ( ! $controller instanceof PMLI_Controller) {
-				throw new Exception("Shortcode `$tag` matches to a wrong controller type.");
-			}
-			ob_start();
-			$controller->index($args, $content);
-			return ob_get_clean();
-		}
-
-		/**
-		 * Dispatch admin page: call corresponding controller based on get parameter `page`
-		 * The method is called twice: 1st time as handler `parse_header` action and then as admin menu item handler
-		 * @param string[optional] $page When $page set to empty string ealier buffered content is outputted, otherwise controller is called based on $page value
-		 */
-		public function adminDispatcher($page = '', $action = 'index') {
-			static $buffer = NULL;
-			static $buffer_callback = NULL;
-			if ('' === $page) {
-				if ( ! is_null($buffer)) {
-					echo '<div class="wrap">';
-					echo $buffer;
-					do_action('pmli_action_after');
-					echo '</div>';
-				} elseif ( ! is_null($buffer_callback)) {
-					echo '<div class="wrap">';
-					call_user_func($buffer_callback);
-					do_action('pmli_action_after');
-					echo '</div>';
-				} else {
-					throw new Exception('There is no previousely buffered content to display.');
-				}
-			} else {
-				$controllerName =  preg_replace('%(^' . preg_quote(self::PREFIX, '%') . '|_).%e', 'strtoupper("$0")', str_replace('-', '_', $page)); // capitalize prefix and first letters of class name parts
-				$actionName = str_replace('-', '_', $action);
-				if (method_exists($controllerName, $actionName)) {
-
-					if ( ! get_current_user_id() or ! current_user_can('manage_options')) {
-					    // This nonce is not valid.
-					    die( 'Security check' ); 
-
-					} else {
-
-						$this->_admin_current_screen = (object)array(
-							'id' => $controllerName,
-							'base' => $controllerName,
-							'action' => $actionName,
-							'is_ajax' => isset($_SERVER['HTTP_X_REQUESTED_WITH']) and strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest',
-							'is_network' => is_network_admin(),
-							'is_user' => is_user_admin(),
-						);
-						add_filter('current_screen', array($this, 'getAdminCurrentScreen'));
-						add_filter('admin_body_class', create_function('', 'return "' . PMLI_Plugin::PREFIX . 'plugin";'));
-
-						$controller = new $controllerName();
-						if ( ! $controller instanceof PMLI_Controller_Admin) {
-							throw new Exception("Administration page `$page` matches to a wrong controller type.");
-						}
-
-						if ($this->_admin_current_screen->is_ajax) { // ajax request
-							$controller->$action();
-							do_action('pmli_action_after');
-							die(); // stop processing since we want to output only what controller is randered, nothing in addition
-						} elseif ( ! $controller->isInline) {
-							ob_start();
-							$controller->$action();
-							$buffer = ob_get_clean();
-						} else {
-							$buffer_callback = array($controller, $action);
-						}
-					
-					}
-
-				} else { // redirect to dashboard if requested page and/or action don't exist
-					wp_redirect(admin_url()); die();
-				}
-			}
-		}
-
-		protected $_admin_current_screen = NULL;
-		public function getAdminCurrentScreen()
-		{
-			return $this->_admin_current_screen;
-		}
-
-		/**
-		 * Autoloader
-		 * It's assumed class name consists of prefix folloed by its name which in turn corresponds to location of source file
-		 * if `_` symbols replaced by directory path separator. File name consists of prefix folloed by last part in class name (i.e.
-		 * symbols after last `_` in class name)
-		 * When class has prefix it's source is looked in `models`, `controllers`, `shortcodes` folders, otherwise it looked in `core` or `library` folder
-		 *
-		 * @param string $className
-		 * @return bool
-		 */
-		public function __autoload($className) {
-			$is_prefix = false;
-			$filePath = str_replace('_', '/', preg_replace('%^' . preg_quote(self::PREFIX, '%') . '%', '', strtolower($className), 1, $is_prefix)) . '.php';
-			if ( ! $is_prefix) { // also check file with original letter case
-				$filePathAlt = $className . '.php';
-			}
-			foreach ($is_prefix ? array('models', 'controllers', 'shortcodes', 'classes') : array() as $subdir) {
-				$path = self::ROOT_DIR . '/' . $subdir . '/' . $filePath;
-				if (is_file($path)) {
-					require $path;
-					return TRUE;
-				}
-				if ( ! $is_prefix) {
-					$pathAlt = self::ROOT_DIR . '/' . $subdir . '/' . $filePathAlt;
-					if (is_file($pathAlt)) {
-						require $pathAlt;
-						return TRUE;
-					}
-				}
-			}
-
-			return FALSE;
-		}
-
-		/**
-		 * Get plugin option
-		 * @param string[optional] $option Parameter to return, all array of options is returned if not set
-		 * @return mixed
-		 */
-		public function getOption($option = NULL) {
-			if (is_null($option)) {
-				return $this->options;
-			} else if (isset($this->options[$option])) {
-				return $this->options[$option];
-			} else {
-				throw new Exception("Specified option is not defined for the plugin");
-			}
-		}
-		/**
-		 * Update plugin option value
-		 * @param string $option Parameter name or array of name => value pairs
-		 * @param mixed[optional] $value New value for the option, if not set than 1st parameter is supposed to be array of name => value pairs
-		 * @return array
-		 */
-		public function updateOption($option, $value = NULL) {
-			is_null($value) or $option = array($option => $value);
-			if (array_diff_key($option, $this->options)) {
-				throw new Exception("Specified option is not defined for the plugin");
-			}
-			$this->options = $option + $this->options;
-			update_option(get_class($this) . '_Options', $this->options);
-
-			return $this->options;
-		}
-
-		/**
-		 * Plugin activation logic
-		 */
-		public function __activation() {
-
-			// uncaught exception doesn't prevent plugin from being activated, therefore replace it with fatal error so it does
-			set_exception_handler(create_function('$e', 'trigger_error($e->getMessage(), E_USER_ERROR);'));
-
-			// create plugin options
-			$option_name = get_class($this) . '_Options';
-			$options_default = PMLI_Config::createFromFile(self::ROOT_DIR . '/config/options.php')->toArray();
-			update_option($option_name, $options_default);
-
-		}
-
-		/**
-		 * Method returns default import options, main utility of the method is to avoid warnings when new
-		 * option is introduced but already registered imports don't have it
-		 */
-		public static function get_default_import_options() {
-			
-			if (!class_exists( 'SitePress' )) return array();
-
-			global $sitepress;
-		    $langs = $sitepress->get_active_languages(); 
-			$lng_code = $sitepress->get_current_language();	
-
-			return array(
-				'pmli' => array(
-					'lang_code' => $lng_code,
-					'lang_name' => (!empty($langs[$lng_code]['native_name'])) ? $langs[$lng_code]['native_name'] : '',
-					'lang_name_en' => (!empty($langs[$lng_code]['english_name'])) ? $langs[$lng_code]['english_name'] : ''
-				),	
-
-				'pmli_duplicate_matching' => 'auto',
-				'pmli_unique_key' => '',
-				'pmli_duplicate_indicator' => 'title',
-				'pmli_custom_duplicate_name' => '',
-				'pmli_custom_duplicate_value' => '',
-				'pmli_is_translate_taxonomies' => 0,
-				'pmli_translate_taxonomies_logic' => 'full_translate',
-				'pmli_taxonomies_list' => array(),				
-				'pmli_taxonomies_only_list' => array(),
-				'pmli_taxonomies_except_list' => array()
+			$conditions = array(
+				'plugins' => array(
+					'sitepress-multilingual-cms/sitepress.php'						
+				)
 			);
+
+			$this->wpml_addon->admin_notice( 
+				$this->wpml_addon->name . ' requires WP All Import <a href="http://www.wpallimport.com/" target="_blank">Pro</a> or <a href="http://wordpress.org/plugins/wp-all-import" target="_blank">Free</a> and <a href="https://wpml.org/" target="_blank">WPML Multilingual CMS.</a>',
+				$conditions
+			); 
+
+			$this->wpml_addon->run($conditions);														
+
+			if ( $this->wpml_addon->is_active_addon('') )
+			{				
+				global $sitepress;
+
+				$this->wpml = $sitepress;
+
+				$this->default_language = $this->wpml->get_default_language();
+
+				$this->init_addon_fields();
+
+				add_action( 'admin_init', 			   array( &$this, 'enqueue_stylesheets' ) );	
+				add_action( 'pmxi_before_post_import', array( &$this, 'before_post_import' ), 10, 1 );
+				add_action( 'pmxi_after_post_import',  array( &$this, 'after_post_import' ),  10, 1 );
+				add_action( 'pmxi_saved_post',         array( &$this, 'saved_post' ), 10, 1 );
+				add_filter( 'pmxi_import_name', 	   array( &$this, 'import_name'), 10, 2 );
+			}			
+			
+		}
+
+		/**
+		*
+		*	Init addons' view
+		*
+		*/
+		private function init_addon_fields()
+		{
+			global $wpdb;			
+
+			$table = PMXI_Plugin::getInstance()->getTablePrefix() . 'imports';			
+
+			$imports = $wpdb->get_results("SELECT * FROM $table WHERE `parent_import_id` = 0", ARRAY_A);
+
+			if ( empty($imports) )
+			{
+				$this->wpml_addon->add_text("This is your first import. Default language will be choosen automatically ( " . $this->get_flag_html($this->default_language) . $this->wpml->get_display_language_name($this->default_language, 'en') ." ).");				
+			}
+
+			$langs = $this->wpml->get_active_languages();	
+
+			if ( ! empty($langs) )
+			{
+				// prepare active languages list
+				$language_list = array();
+
+				foreach ($langs as $code => $langInfo) 
+				{
+					$language_list[$code] = $this->get_flag_html($code) . $langInfo['display_name'];
+
+					if ($code == $this->default_language) $language_list[$code] .= ' ( <strong>default</strong> )';
+				}	
+
+				$this->wpml_addon->add_field(
+					'lng',
+					'Content Language',
+					'radio',
+					$language_list
+				);				
+
+				if ( ! empty($imports) )
+				{
+					// prepare active imports list
+					$import_list = array();
+
+					foreach ( $imports as $import )
+					{
+						if ( ! empty($_GET['id']) and $_GET['id'] == $import['id'] ) continue;
+						$import_options = unserialize($import['options']);						
+						$import_list[$import['id']]  = '[ ID: ' . $import['id'] . ' ] ' . ( ( ! empty($import_options['wpml_addon']['lng'])) ? $this->get_flag_html($import_options['wpml_addon']['lng']) : '' ) . (( ! empty($import['friendly_name']) ) ? $import['friendly_name'] : $import['name']); 						
+					}
+
+					$this->wpml_addon->add_options(
+						null,
+						'Automatic Record Matching to Translate',
+						array(
+							$this->wpml_addon->add_field(
+								'matching_logic',
+								'Records matching logic',
+								'radio',
+								array(
+									'' => '<strong>Import data in main language (' . $this->wpml->get_display_language_name($this->default_language, 'en') . ')</strong>',
+									'auto' => array(
+										'Define parent import',
+										$this->wpml_addon->add_field(
+											'import',
+											'Import to translate',
+											'radio',
+											$import_list
+										),
+										$this->wpml_addon->add_field('unique_key', 'Unique Key', 'text', null, 'To inform WPML that this new post is translation of another post put the same unique key like you did for post in main language.')
+									)
+								)
+							)							
+						)
+					);
+
+					// Aditional Options [ TODO: taxonomies options, media options, etc. ]
+
+					// $this->wpml_addon->add_options(
+					// 	null,
+					// 	'Advanced Settings',
+					// 	array(							
+					// 		$this->wpml_addon->add_field('translate_taxes', 'Translate taxonomies', 'radio', array('' => 'No', '1' => 'Yes'))
+					// 	) 
+					// );
+				}
+				return;
+			}			
+
+			$this->wpml_addon->add_text('Please set up site languages before using \'WP All Import - WPML add-on.\'');
+		}
+
+		public function get_flag_html( $code )
+		{
+			return "<img width='18' height='12' src='" . $this->wpml->get_flag_url($code) . "' style='position:relative; top: 2px;'/> ";
+		}
+
+		// [filters]
+
+			/**
+			*
+			*	Import's friendly name on manage imports screen
+			*
+			*/
+			public function import_name($friendly_name, $import_id)
+			{
+				$import = new PMXI_Import_Record();
+				$import->getById($import_id);
+				if ( ! $import->isEmpty())
+				{
+					if ( ! empty($import->options['wpml_addon']['lng']) )
+					{
+						$friendly_name = $this->get_flag_html($import->options['wpml_addon']['lng']) . $friendly_name;
+					}
+				}
+				return $friendly_name;
+			}
+
+		// [\filters]
+
+		// [actions]
+
+			public function enqueue_stylesheets()
+			{		
+				wp_enqueue_style( 'wp-all-import-wpml-add-on', self::ROOT_URL . '/static/css/admin.css', false, 0.1, 'all' ); 
+			}		
+			
+			/**
+			*				
+			*	Fires before inserting/updating post [do_action - 'pmxi_before_post_import']
+			*
+			*/
+			public function before_post_import( $import_id )
+			{
+				$this->current_language = apply_filters('wpml_current_language', null);
+
+				if ( empty($this->language_code) )
+				{				
+					$import = new PMXI_Import_Record();
+					$import->getById( $import_id );
+					if ( ! $import->isEmpty() )
+					{
+						$this->language_code = (empty($import->options['wpml_addon']['lng'])) ? $this->default_language : $import->options['wpml_addon']['lng'];
+					}
+				}
+				// switch language to language in which post should be created
+				do_action( 'wpml_switch_language', $this->language_code );
+			}
+
+			/**
+			*
+			*	Fires after inserting/updating post [do_action - 'pmxi_after_post_import']
+			*
+			*/
+			public function after_post_import( $import_id )
+			{
+				// switch language back to main
+				do_action( 'wpml_switch_language', $this->current_language );
+			}
+
+			/**
+			*
+			*	Fires after saving post [do_action - 'pmxi_saved_post']
+			*
+			*/
+			public function saved_post( $post_id )
+			{
+				// TODO: for future needs
+			}
+
+		//[\actions]
+
+		/**
+		*
+		*	Fires after wp_insert_post/wp_update_post
+		*
+		*/
+		public function import($post_id, $data, $import, $articleData, $logger)
+		{			
+			// return if this is a basic post ( not a translation )
+			if ( empty($import['options']['wpml_addon']['matching_logic']) or empty($import['options']['wpml_addon']['import']) ) return;
+
+			// search for post to translate			
+			$parentImport = new PMXI_Import_Record();
+			$parentImport->getById($import['options']['wpml_addon']['import']);
+
+			if ( ! $parentImport->isEmpty())
+			{
+				// post is that must be translated
+				$parent_post_id = false;
+
+				$postRecord = new PMXI_Post_Record();	
+				$postRecord->clear();
+				$postRecord->getBy(array(
+					'unique_key' => $data['unique_key'],
+					'import_id'  => $import['options']['wpml_addon']['import']
+				));
+				if ( ! $postRecord->isEmpty() ) 
+					$parent_post_id = $postRecord->post_id;
+
+				if ($parent_post_id)
+				{	
+					$post_type = (in_array(get_post_type($post_id), array('product', 'product_variation'))) ? 'post_product' : 'post_' . get_post_type($post_id);
+
+					$trid = $this->wpml->get_element_trid($parent_post_id, $post_type);					
+					
+					if ( $trid )
+					{
+						global $wpdb;
+
+						// sync translation slug
+						$parent_post = get_post($parent_post_id);									
+
+						if ( ! empty($parent_post) and $parent_post->post_title == $articleData['post_title']) 
+						{			
+							$wpdb->update( $wpdb->posts, array( 'post_name' => $parent_post->post_name ), array( 'ID' => $post_id ) );				
+						}
+
+						// create a translation
+						$tid = $this->wpml->set_element_language_details($post_id, $post_type, $trid, $import->options['wpml_addon']['lng'], $parentImport->options['wpml_addon']['lng']);
+
+						if (is_wp_error($tid)) 
+						{
+							$logger and call_user_func($logger, __('<b>ERROR</b>', 'wp_all_import_plugin') . ': ' . $tid->get_error_message());
+						}
+						else
+						{
+							$logger and call_user_func($logger, sprintf(__('- Created `%s` translation for `%s`', 'wp_all_import_plugin'), $import->options['wpml_addon']['lng'], $parent_post->post_title));	
+						}												
+					}
+				}
+			}						
+		}
+
+		/**
+		*
+		*	Fires after all data has been imported, e.q. images, taxonomies, custom fields etc.
+		*
+		*/
+		public function saved( $post_id, $import, $logger )
+		{
+			// TODO: here we can add translations for taxonomies and ather stuff
+			$logger and call_user_func($logger, __('<b>TEST</b>', 'wp_all_import_plugin'));
 		}
 	}
 
-	PMLI_Plugin::getInstance();
-
-	// retrieve our license key from the DB
-	$wpai_wpml_addon_options = get_option('PMXI_Plugin_Options');
-	
-	if (!empty($wpai_wpml_addon_options['info_api_url'])){
-		// setup the updater
-		$updater = new PMLI_Updater( $wpai_wpml_addon_options['info_api_url'], __FILE__, array( 
-				'version' 	=> PMLI_VERSION,		// current version number
-				'license' 	=> false, // license key (used get_option above to retrieve from DB)
-				'item_name' => PMLI_Plugin::getEddName(), 	// name of this plugin
-				'author' 	=> 'Soflyy'  // author of this plugin
-			)
-		);
-	}
-	
+	WPAI_WPML::getInstance();
 }
-
