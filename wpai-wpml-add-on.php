@@ -103,6 +103,7 @@ if ( ! class_exists('WPAI_WPML') )
 				add_action( 'pmxi_before_post_import', array( &$this, 'before_post_import' ), 10, 1 );
 				add_action( 'pmxi_after_post_import',  array( &$this, 'after_post_import' ),  10, 1 );
 				add_action( 'pmxi_saved_post',         array( &$this, 'saved_post' ), 10, 1 );
+				add_action( 'pmxi_delete_post',        array( &$this, 'delete_post' ), 10, 1 );
 				add_filter( 'pmxi_import_name', 	   array( &$this, 'import_name'), 10, 2 );
 			}			
 			
@@ -276,6 +277,22 @@ if ( ! class_exists('WPAI_WPML') )
 			public function saved_post( $post_id )
 			{
 				// TODO: for future needs
+			}
+
+			/**
+			*
+			*	Fires before deleting post [do_action - 'pmxi_delete_post']
+			*
+			*/
+			public function delete_post( $post_id )
+			{
+				global $wpdb;
+				$post_type = (in_array(get_post_type($post_id), array('product', 'product_variation'))) ? 'post_product' : 'post_' . get_post_type($post_id);
+				$delete_args = array($post_id, $post_type);
+				$delete_sql = "DELETE FROM {$wpdb->prefix}icl_translations WHERE element_id=%d AND element_type=%s";
+				$delete_sql_prepared = $wpdb->prepare($delete_sql, $delete_args);
+				$wpdb->query( $delete_sql_prepared );
+				$this->wpml->icl_translations_cache->clear();
 			}
 
 		//[\actions]
