@@ -12,7 +12,7 @@ Import multilingual content to WordPress. Requires WP All Import & WPML.
 
 == Description ==
 
-WP All Import is a plugin enabling import of thousands of post or pages from CSV or XML file. This additional extension helps WP All Import to work in language context.
+WP All Import is a plugin enabling import of thousands of post or pages from CSV or XML file. This additional extension helps WP All Import to work in WPML context.
 
 You will be able to select language of imported posts and set language relation between posts.
 
@@ -30,7 +30,7 @@ Please ask all your questions at [WPML forum](https://wpml.org/forums/)
 
 = Is there a documentation for this extension? =
 
-Yes, link to documentation will be provided soon. 
+Yes, link to documentation will be provided soon.
 
 == Screenshots ==
 
