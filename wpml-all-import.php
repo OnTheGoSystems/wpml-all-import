@@ -1,7 +1,7 @@
 <?php
 
 /*
-	Plugin Name: WP All Import Multilingual
+	Plugin Name: WPML All Import
 	Plugin URI: http://wpml.org
 	Description: Import multilingual content to WordPress. Requires WP All Import & WPML.
 	Version: 2.0.0
