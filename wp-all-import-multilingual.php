@@ -348,11 +348,11 @@ if ( ! class_exists('WPAI_WPML') )
 
 						if (is_wp_error($tid))
 						{
-							$logger and call_user_func($logger, __('<b>ERROR</b>', 'wp_all_import_plugin') . ': ' . $tid->get_error_message());
+							$logger and call_user_func($logger, __('<b>ERROR</b>', 'wpml-all-import') . ': ' . $tid->get_error_message());
 						}
 						else
 						{
-							$logger and call_user_func($logger, sprintf(__('- Created `%s` translation for `%s`', 'wp_all_import_plugin'), $import->options['wpml_addon']['lng'], $parent_post->post_title));
+							$logger and call_user_func($logger, sprintf(__('- Created `%s` translation for `%s`', 'wpml-all-import'), $import->options['wpml_addon']['lng'], $parent_post->post_title));
 						}
 					}
 				}
@@ -367,7 +367,7 @@ if ( ! class_exists('WPAI_WPML') )
 		public function saved( $post_id, $import, $logger )
 		{
 			// TODO: here we can add translations for taxonomies and ather stuff
-			$logger and call_user_func($logger, __('<b>TEST</b>', 'wp_all_import_plugin'));
+			$logger and call_user_func($logger, __('<b>TEST</b>', 'wpml-all-import'));
 		}
 	}
 
