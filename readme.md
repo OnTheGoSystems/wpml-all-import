@@ -1,1 +1,1 @@
-#WP All Import - WPML Add-On
+#WPML All Import
